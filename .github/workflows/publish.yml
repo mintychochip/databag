@@ -1,0 +1,40 @@
+name: Publish GitHub Packages
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: packages-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish CalVer artifacts
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GITHUB_ACTOR: ${{ github.actor }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Generate CalVer YY.M.D.RUN
+        id: version
+        shell: bash
+        run: echo "release=$(date -u +'%y.%-m.%-d').${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+      - run: chmod +x gradlew
+      - name: Test and publish
+        run: >-
+          ./gradlew --no-daemon
+          -PreleaseVersion=${{ steps.version.outputs.release }}
+          test
+          publishAllPublicationsToGitHubPackagesRepository
