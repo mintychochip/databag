@@ -48,6 +48,15 @@ switch (payload.format()) {
 
 `getBytes(key)` stays empty for formatted slots so callers cannot ignore the id.
 
+Plugins that should not live in ModularJobs (party size, region, …) register a
+`DataHandler` and store the typed value themselves:
+
+```java
+DataHandlers.register(partySizeHandler);
+bag.set(partySizeHandler, 4);
+int size = bag.get(partySizeHandler).orElse(0);
+```
+
 ## Versioning
 
 CalVer `YY.M.D.REVISION` (example `26.8.19.1`). Local: `0.0.0-SNAPSHOT`.

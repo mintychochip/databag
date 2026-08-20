@@ -1,12 +1,14 @@
 package dev.databag;
 
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.OptionalInt;
 import java.util.OptionalLong;
+import java.util.Set;
 import java.util.UUID;
 import net.kyori.adventure.key.Key;
 
@@ -99,6 +101,14 @@ public final class DataBag {
     return this;
   }
 
+  /**
+   * Stores {@code value} using a registered (or caller-held) {@link DataHandler}.
+   */
+  public <T> DataBag set(DataHandler<T> handler, T value) {
+    Objects.requireNonNull(handler, "handler");
+    return setBytes(handler.key(), handler.format(), handler.encode(value));
+  }
+
   public DataBag setByte(Key key, byte value) {
     values.put(id(key), new Entry(Tags.BYTE, value));
     return this;
@@ -154,6 +164,28 @@ public final class DataBag {
 
   public Optional<FormattedBytes> getFormatted(Key key) {
     return typed(key, Tags.FORMATTED, FormattedBytes.class);
+  }
+
+  /**
+   * Reads a typed value with {@code handler}. Empty when the key is missing,
+   * the format id does not match, or the slot is not formatted bytes.
+   */
+  public <T> Optional<T> get(DataHandler<T> handler) {
+    Objects.requireNonNull(handler, "handler");
+    Optional<FormattedBytes> formatted = getFormatted(handler.key());
+    if (formatted.isEmpty() || formatted.get().format() != handler.format()) {
+      return Optional.empty();
+    }
+    return Optional.of(handler.decode(formatted.get().value()));
+  }
+
+  /** Namespaced keys present in this bag, in insertion order. */
+  public Set<Key> keys() {
+    Set<Key> keys = new LinkedHashSet<>();
+    for (String raw : values.keySet()) {
+      keys.add(Key.key(raw));
+    }
+    return Set.copyOf(keys);
   }
 
   public Optional<Byte> getByte(Key key) {
