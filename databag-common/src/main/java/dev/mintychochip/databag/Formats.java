@@ -1,4 +1,4 @@
-package dev.databag;
+package dev.mintychochip.databag;
 
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;

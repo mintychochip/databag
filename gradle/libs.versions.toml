@@ -1,11 +1,17 @@
 [versions]
 adventure = "4.21.0"
-kryo = "5.6.2"
+gson = "2.11.0"
+jetbrains-annotations = "24.1.0"
 junit = "5.11.4"
 junit-platform = "1.11.4"
+kryo = "5.6.2"
+paper = "26.2.build.65-beta"
 
 [libraries]
 adventure-api = { module = "net.kyori:adventure-api", version.ref = "adventure" }
-kryo = { module = "com.esotericsoftware:kryo", version.ref = "kryo" }
+gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
+jetbrains-annotations = { module = "org.jetbrains:annotations", version.ref = "jetbrains-annotations" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher", version.ref = "junit-platform" }
+kryo = { module = "com.esotericsoftware:kryo", version.ref = "kryo" }
+paper-api = { module = "io.papermc.paper:paper-api", version.ref = "paper" }

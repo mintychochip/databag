@@ -1,4 +1,4 @@
-package dev.databag;
+package dev.mintychochip.databag;
 
 /**
  * The byte[] starts with a DataBag magic header but the envelope version is

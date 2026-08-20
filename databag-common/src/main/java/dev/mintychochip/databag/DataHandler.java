@@ -1,4 +1,4 @@
-package dev.databag;
+package dev.mintychochip.databag;
 
 import net.kyori.adventure.key.Key;
 

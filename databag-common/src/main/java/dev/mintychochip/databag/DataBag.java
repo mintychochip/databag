@@ -1,4 +1,4 @@
-package dev.databag;
+package dev.mintychochip.databag;
 
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;

@@ -1,4 +1,4 @@
-package dev.databag;
+package dev.mintychochip.databag;
 
 final class Tags {
 

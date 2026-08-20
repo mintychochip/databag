@@ -1,4 +1,4 @@
-package dev.databag;
+package dev.mintychochip.databag;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
