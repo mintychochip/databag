@@ -1,4 +1,7 @@
 # databag
+[![build](https://img.shields.io/github/actions/workflow/status/mintychochip/databag/ci.yml?label=build)](https://github.com/mintychochip/databag/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/mintychochip/databag)](https://github.com/mintychochip/databag/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 PDC-shaped primitive bag plus player/entity/block predicates. Java package
 and Maven group: **`dev.mintychochip.databag`**.
@@ -218,6 +221,10 @@ Unregistered ids still throw on read.
 
 CalVer `YY.M.D.REVISION` (example `26.8.19.1`). Local: `0.0.0-SNAPSHOT`.
 Release: `./gradlew publishAllPublicationsToLocalBuildRepoRepository -PreleaseVersion=26.8.19.1`.
+
+Tag `YY.M.D.REVISION` (e.g. `26.8.20.1`) to trigger the release workflow: it
+builds, publishes to GitHub Packages, and creates a GitHub release with the
+jars.
 
 ## Build
 
