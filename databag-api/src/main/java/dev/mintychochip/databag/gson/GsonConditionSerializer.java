@@ -6,6 +6,8 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.List;
 import java.util.Locale;
 import dev.mintychochip.databag.AllOfCondition;
@@ -15,12 +17,15 @@ import dev.mintychochip.databag.BabyCondition;
 import dev.mintychochip.databag.BiomeCondition;
 import dev.mintychochip.databag.BlockIdCondition;
 import dev.mintychochip.databag.BlockPropertyCondition;
+import dev.mintychochip.databag.CanSeeSkyCondition;
 import dev.mintychochip.databag.Condition;
 import dev.mintychochip.databag.ConditionHandler;
 import dev.mintychochip.databag.ConditionHandlers;
 import dev.mintychochip.databag.ConditionSerializer;
 import dev.mintychochip.databag.Conditions;
 import dev.mintychochip.databag.DataBag;
+import dev.mintychochip.databag.DimensionCondition;
+import dev.mintychochip.databag.EntityScoresCondition;
 import dev.mintychochip.databag.EntityTypeCondition;
 import dev.mintychochip.databag.FluidCondition;
 import dev.mintychochip.databag.FlyingCondition;
@@ -28,6 +33,8 @@ import dev.mintychochip.databag.GameModeCondition;
 import dev.mintychochip.databag.GlidingCondition;
 import dev.mintychochip.databag.InvertedCondition;
 import dev.mintychochip.databag.JobCondition;
+import dev.mintychochip.databag.KilledByPlayerCondition;
+import dev.mintychochip.databag.LightCondition;
 import dev.mintychochip.databag.OnFireCondition;
 import dev.mintychochip.databag.OnGroundCondition;
 import dev.mintychochip.databag.PlayerResourceCondition;
@@ -35,10 +42,12 @@ import dev.mintychochip.databag.PlayerResourceType;
 import dev.mintychochip.databag.PotionAmplifierCondition;
 import dev.mintychochip.databag.PotionDurationCondition;
 import dev.mintychochip.databag.PotionPresentCondition;
+import dev.mintychochip.databag.PositionCondition;
 import dev.mintychochip.databag.RelationalOperator;
 import dev.mintychochip.databag.SneakingCondition;
 import dev.mintychochip.databag.SprintingCondition;
 import dev.mintychochip.databag.SwimmingCondition;
+import dev.mintychochip.databag.TimeCheckCondition;
 import dev.mintychochip.databag.WeatherCondition;
 import dev.mintychochip.databag.WeatherState;
 import dev.mintychochip.databag.WorldCondition;
@@ -103,6 +112,13 @@ public final class GsonConditionSerializer implements ConditionSerializer {
       case PotionDurationCondition potion -> effectJson(
           potion.effectKey().asString(), "duration", potion.operator(), potion.expected());
       case JobCondition job -> jobJson(job);
+      case TimeCheckCondition time -> timeCheckJson(time);
+      case EntityScoresCondition scores -> entityScoresJson(scores);
+      case KilledByPlayerCondition killed -> killedByPlayerJson(killed);
+      case PositionCondition position -> positionLocationCheckJson(position);
+      case DimensionCondition dimension -> dimensionLocationCheckJson(dimension);
+      case LightCondition light -> lightLocationCheckJson(light);
+      case CanSeeSkyCondition canSeeSky -> canSeeSkyLocationCheckJson(canSeeSky);
       default -> writeRegistered(condition);
     };
   }
@@ -138,7 +154,13 @@ public final class GsonConditionSerializer implements ConditionSerializer {
       case "biome" -> Conditions.biome(Key.key(requiredString(json, "value")));
       case "liquid" -> Conditions.fluid(Key.key(liquidKey(json)));
       case "potion_effect" -> readLegacyPotion(json);
-      default -> readRegistered(id, json);
+      case "time_check" -> readTimeCheck(json);
+      case "entity_scores" -> readEntityScores(json);
+      case "killed_by_player" -> readKilledByPlayer(json);
+      default -> {
+        throwIfUnsupportedVanilla(id, normalized);
+        yield readRegistered(id, json);
+      }
     };
   }
 
@@ -293,6 +315,7 @@ public final class GsonConditionSerializer implements ConditionSerializer {
 
   private Condition readLocationCheck(JsonObject json) {
     JsonObject predicate = json.has("predicate") ? json.getAsJsonObject("predicate") : json;
+    List<Condition> parts = new ArrayList<>();
     if (predicate.has("fluid")) {
       JsonElement fluid = predicate.get("fluid");
       List<String> fluids = fluid.isJsonObject() && fluid.getAsJsonObject().has("fluids")
@@ -302,7 +325,7 @@ public final class GsonConditionSerializer implements ConditionSerializer {
           .map(key -> Conditions.fluid(Key.key(key)))
           .toList());
       if (anyFluid != null) {
-        return anyFluid;
+        parts.add(anyFluid);
       }
     }
     if (predicate.has("biomes")) {
@@ -310,13 +333,32 @@ public final class GsonConditionSerializer implements ConditionSerializer {
           .map(biome -> Conditions.biome(Key.key(biome)))
           .toList());
       if (anyBiome != null) {
-        return anyBiome;
+        parts.add(anyBiome);
       }
     }
-    if (predicate.has("block") && predicate.get("block").isJsonObject()) {
-      return readLocationBlock(predicate.getAsJsonObject("block"));
+    if (predicate.has("position") && predicate.get("position").isJsonObject()) {
+      parts.add(readPositionCondition(predicate.getAsJsonObject("position")));
     }
-    throw new IllegalArgumentException("location_check requires fluid, biomes, or block");
+    if (predicate.has("dimension")) {
+      parts.add(Conditions.dimension(Key.key(predicate.get("dimension").getAsString())));
+    }
+    if (predicate.has("light")) {
+      parts.add(readLightCondition(predicate.get("light")));
+    }
+    if (predicate.has("can_see_sky")) {
+      parts.add(Conditions.canSeeSky(predicate.get("can_see_sky").getAsBoolean()));
+    }
+    if (predicate.has("block") && predicate.get("block").isJsonObject()) {
+      parts.add(readLocationBlock(predicate.getAsJsonObject("block")));
+    }
+    if (parts.isEmpty()) {
+      throw new IllegalArgumentException(
+          "location_check requires fluid, biomes, position, dimension, light, can_see_sky, or block");
+    }
+    if (parts.size() == 1) {
+      return parts.getFirst();
+    }
+    return Conditions.allOf(parts.toArray(Condition[]::new));
   }
 
   private Condition readLocationBlock(JsonObject block) {
@@ -402,6 +444,115 @@ public final class GsonConditionSerializer implements ConditionSerializer {
           key, parseOperator(json.get("operator").getAsString()), json.get("amplifier").getAsInt());
     }
     return Conditions.potionPresent(key);
+  }
+
+  private Condition readTimeCheck(JsonObject json) {
+    Long period = json.has("period") ? json.get("period").getAsLong() : null;
+    JsonElement valueElement = json.get("value");
+    Long min;
+    Long max;
+    if (valueElement.isJsonObject()) {
+      JsonObject value = valueElement.getAsJsonObject();
+      min = value.has("min") ? value.get("min").getAsLong() : null;
+      max = value.has("max") ? value.get("max").getAsLong() : null;
+    } else {
+      long exact = valueElement.getAsLong();
+      min = exact;
+      max = exact;
+    }
+    return Conditions.timeCheck(min, max, period);
+  }
+
+  private Condition readEntityScores(JsonObject json) {
+    if (json.has("entity") && !"this".equals(json.get("entity").getAsString())) {
+      throw new IllegalArgumentException("entity_scores only supports entity=this");
+    }
+    if (!json.has("scores") || !json.get("scores").isJsonObject()) {
+      throw new IllegalArgumentException("entity_scores requires scores");
+    }
+    Map<String, EntityScoresCondition.Bound> scores = new LinkedHashMap<>();
+    for (var entry : json.getAsJsonObject("scores").entrySet()) {
+      scores.put(entry.getKey(), readScoreBound(entry.getValue()));
+    }
+    return Conditions.entityScores(scores);
+  }
+
+  private Condition readKilledByPlayer(JsonObject json) {
+    boolean expected = json.has("value") ? json.get("value").getAsBoolean() : true;
+    return Conditions.killedByPlayer(expected);
+  }
+
+  private static EntityScoresCondition.Bound readScoreBound(JsonElement element) {
+    if (element.isJsonPrimitive()) {
+      int exact = element.getAsInt();
+      return new EntityScoresCondition.Bound(exact, exact);
+    }
+    JsonObject bounds = element.getAsJsonObject();
+    Integer min = bounds.has("min") ? bounds.get("min").getAsInt() : null;
+    Integer max = bounds.has("max") ? bounds.get("max").getAsInt() : null;
+    return new EntityScoresCondition.Bound(min, max);
+  }
+
+  private static Condition readPositionCondition(JsonObject position) {
+    Double minX = null;
+    Double maxX = null;
+    Double minY = null;
+    Double maxY = null;
+    Double minZ = null;
+    Double maxZ = null;
+    if (position.has("x")) {
+      Double[] x = readAxisBounds(position.get("x"));
+      minX = x[0];
+      maxX = x[1];
+    }
+    if (position.has("y")) {
+      Double[] y = readAxisBounds(position.get("y"));
+      minY = y[0];
+      maxY = y[1];
+    }
+    if (position.has("z")) {
+      Double[] z = readAxisBounds(position.get("z"));
+      minZ = z[0];
+      maxZ = z[1];
+    }
+    return Conditions.position(minX, maxX, minY, maxY, minZ, maxZ);
+  }
+
+  private static Condition readLightCondition(JsonElement lightElement) {
+    if (!lightElement.isJsonObject()) {
+      throw new IllegalArgumentException("location_check light must be an object");
+    }
+    JsonObject light = lightElement.getAsJsonObject();
+    Integer minLevel = null;
+    Integer maxLevel = null;
+    if (light.has("light")) {
+      Integer[] bounds = readIntegerBounds(light.get("light"));
+      minLevel = bounds[0];
+      maxLevel = bounds[1];
+    }
+    return Conditions.light(minLevel, maxLevel, null, null, null, null);
+  }
+
+  private static Double[] readAxisBounds(JsonElement element) {
+    if (element.isJsonPrimitive()) {
+      double exact = element.getAsDouble();
+      return new Double[] {exact, exact};
+    }
+    JsonObject bounds = element.getAsJsonObject();
+    Double min = bounds.has("min") ? bounds.get("min").getAsDouble() : null;
+    Double max = bounds.has("max") ? bounds.get("max").getAsDouble() : null;
+    return new Double[] {min, max};
+  }
+
+  private static Integer[] readIntegerBounds(JsonElement element) {
+    if (element.isJsonPrimitive()) {
+      int exact = element.getAsInt();
+      return new Integer[] {exact, exact};
+    }
+    JsonObject bounds = element.getAsJsonObject();
+    Integer min = bounds.has("min") ? bounds.get("min").getAsInt() : null;
+    Integer max = bounds.has("max") ? bounds.get("max").getAsInt() : null;
+    return new Integer[] {min, max};
   }
 
   private List<Condition> readTerms(JsonObject json, String field) {
@@ -553,6 +704,142 @@ public final class GsonConditionSerializer implements ConditionSerializer {
     return root;
   }
 
+  private static JsonObject timeCheckJson(TimeCheckCondition time) {
+    JsonObject value = new JsonObject();
+    if (time.min() != null) {
+      value.addProperty("min", time.min());
+    }
+    if (time.max() != null) {
+      value.addProperty("max", time.max());
+    }
+    JsonObject root = new JsonObject();
+    root.addProperty("condition", "minecraft:time_check");
+    root.add("value", value);
+    if (time.period() != null) {
+      root.addProperty("period", time.period());
+    }
+    return root;
+  }
+
+  private static JsonObject entityScoresJson(EntityScoresCondition scores) {
+    JsonObject scoreObject = new JsonObject();
+    for (Map.Entry<String, EntityScoresCondition.Bound> entry : scores.scores().entrySet()) {
+      scoreObject.add(entry.getKey(), writeScoreBound(entry.getValue()));
+    }
+    JsonObject root = new JsonObject();
+    root.addProperty("condition", "minecraft:entity_scores");
+    root.addProperty("entity", "this");
+    root.add("scores", scoreObject);
+    return root;
+  }
+
+  private static JsonElement writeScoreBound(EntityScoresCondition.Bound bound) {
+    if (bound.min() != null && bound.max() != null && bound.min().equals(bound.max())) {
+      return new com.google.gson.JsonPrimitive(bound.min());
+    }
+    JsonObject bounds = new JsonObject();
+    if (bound.min() != null) {
+      bounds.addProperty("min", bound.min());
+    }
+    if (bound.max() != null) {
+      bounds.addProperty("max", bound.max());
+    }
+    return bounds;
+  }
+
+  private static JsonObject killedByPlayerJson(KilledByPlayerCondition killed) {
+    JsonObject root = new JsonObject();
+    root.addProperty("condition", "minecraft:killed_by_player");
+    root.addProperty("value", killed.expected());
+    return root;
+  }
+
+  private static JsonObject positionLocationCheckJson(PositionCondition position) {
+    JsonObject positionObject = new JsonObject();
+    JsonObject x = axisBoundsObject(position.minX(), position.maxX());
+    if (x != null) {
+      positionObject.add("x", x);
+    }
+    JsonObject y = axisBoundsObject(position.minY(), position.maxY());
+    if (y != null) {
+      positionObject.add("y", y);
+    }
+    JsonObject z = axisBoundsObject(position.minZ(), position.maxZ());
+    if (z != null) {
+      positionObject.add("z", z);
+    }
+    JsonObject predicate = new JsonObject();
+    predicate.add("position", positionObject);
+    return locationCheckJson(predicate);
+  }
+
+  private static JsonObject dimensionLocationCheckJson(DimensionCondition dimension) {
+    JsonObject predicate = new JsonObject();
+    predicate.addProperty("dimension", dimension.dimensionKey().asString());
+    return locationCheckJson(predicate);
+  }
+
+  private static JsonObject lightLocationCheckJson(LightCondition light) {
+    if (light.minSky() != null || light.maxSky() != null
+        || light.minBlock() != null || light.maxBlock() != null) {
+      throw new IllegalArgumentException(
+          "LightCondition sky/block bounds cannot be expressed in vanilla JE 26.2 "
+              + "location JSON; only the combined light bound is supported");
+    }
+    JsonObject lightObject = new JsonObject();
+    JsonElement levelBounds = intBoundsElement(light.minLevel(), light.maxLevel());
+    if (levelBounds != null) {
+      lightObject.add("light", levelBounds);
+    }
+    JsonObject predicate = new JsonObject();
+    predicate.add("light", lightObject);
+    return locationCheckJson(predicate);
+  }
+
+  private static JsonObject canSeeSkyLocationCheckJson(CanSeeSkyCondition canSeeSky) {
+    JsonObject predicate = new JsonObject();
+    predicate.addProperty("can_see_sky", canSeeSky.expected());
+    return locationCheckJson(predicate);
+  }
+
+  private static JsonObject locationCheckJson(JsonObject predicate) {
+    JsonObject root = new JsonObject();
+    root.addProperty("condition", "minecraft:location_check");
+    root.add("predicate", predicate);
+    return root;
+  }
+
+  private static JsonObject axisBoundsObject(Double min, Double max) {
+    if (min == null && max == null) {
+      return null;
+    }
+    JsonObject bounds = new JsonObject();
+    if (min != null) {
+      bounds.addProperty("min", min);
+    }
+    if (max != null) {
+      bounds.addProperty("max", max);
+    }
+    return bounds;
+  }
+
+  private static JsonElement intBoundsElement(Integer min, Integer max) {
+    if (min == null && max == null) {
+      return null;
+    }
+    if (min != null && max != null && min.equals(max)) {
+      return new com.google.gson.JsonPrimitive(min);
+    }
+    JsonObject bounds = new JsonObject();
+    if (min != null) {
+      bounds.addProperty("min", min);
+    }
+    if (max != null) {
+      bounds.addProperty("max", max);
+    }
+    return bounds;
+  }
+
   private static JsonObject weatherJson(WeatherState state) {
     JsonObject root = new JsonObject();
     root.addProperty("condition", "minecraft:weather_check");
@@ -685,8 +972,33 @@ public final class GsonConditionSerializer implements ConditionSerializer {
       case "HEALTH", "HP" -> PlayerResourceType.HEALTH;
       case "HUNGER", "FOOD", "FOOD_LEVEL" -> PlayerResourceType.HUNGER;
       case "EXPERIENCE", "XP", "EXP" -> PlayerResourceType.EXPERIENCE;
+      case "LEVEL", "XP_LEVEL" -> PlayerResourceType.LEVEL;
+      case "ABSORPTION" -> PlayerResourceType.ABSORPTION;
+      case "AIR", "OXYGEN", "AIR_REMAINING" -> PlayerResourceType.AIR;
       default -> throw new IllegalArgumentException("Unknown player resource type: " + raw);
     };
+  }
+
+  private static void throwIfUnsupportedVanilla(String id, String normalized) {
+    String reason = switch (normalized) {
+      case "match_tool" -> "requires tool item from loot execution context";
+      case "survives_explosion" -> "requires explosion radius from loot execution context";
+      case "random_chance" -> "requires loot execution RNG context";
+      case "random_chance_with_enchanted_bonus" ->
+          "requires attacker enchantment level from loot context";
+      case "table_bonus" -> "requires tool enchantment level from loot context";
+      case "enchantment_active_check" -> "requires enchanted_location loot context";
+      case "damage_source_properties" ->
+          "requires damage source and attacker entities (multi-entity snapshot)";
+      case "value_check" -> "requires vanilla number providers";
+      case "reference" -> "requires predicate file resolver";
+      case "environment_attribute_check" -> "requires environment attribute values in snapshot";
+      case "match_block" -> "upcoming JE 26.3 (replaces block_state_property)";
+      default -> null;
+    };
+    if (reason != null) {
+      throw new IllegalArgumentException("Unsupported vanilla condition " + id + ": " + reason);
+    }
   }
 
   private static RelationalOperator parseOperator(String raw) {

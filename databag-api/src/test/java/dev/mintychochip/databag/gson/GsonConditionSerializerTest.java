@@ -206,4 +206,140 @@ class GsonConditionSerializerTest {
     assertThrows(IllegalArgumentException.class,
         () -> serializer.read(json.getBytes(StandardCharsets.UTF_8)));
   }
+  @Test
+  void roundTripsNewConditions() {
+    Condition time = serializer.read(serializer.write(Conditions.timeCheck(10L, 20L, 30L)));
+    assertTrue(time.test(ConditionContext.builder().present(true).dayTime(40L).build()));
+    assertTrue(time.test(ConditionContext.builder().present(true).dayTime(41L).build()));
+
+    Condition scores = serializer.read(serializer.write(Conditions.entityScores(Map.of(
+        "points", new dev.mintychochip.databag.EntityScoresCondition.Bound(1, 5),
+        "wins", new dev.mintychochip.databag.EntityScoresCondition.Bound(3, 3)))));
+    assertTrue(scores.test(ConditionContext.builder().present(true)
+        .scores(Map.of("points", 4, "wins", 3)).build()));
+    assertFalse(scores.test(ConditionContext.builder().present(true)
+        .scores(Map.of("points", 6, "wins", 3)).build()));
+
+    for (boolean expected : new boolean[] {true, false}) {
+      Condition killed = serializer.read(serializer.write(Conditions.killedByPlayer(expected)));
+      assertTrue(killed.test(ConditionContext.builder().present(true)
+          .attackingPlayer(expected).build()));
+      assertFalse(killed.test(ConditionContext.builder().present(true)
+          .attackingPlayer(!expected).build()));
+    }
+
+    Condition position = serializer.read(serializer.write(
+        Conditions.position(1.0, 3.0, 4.0, 6.0, 7.0, 9.0)));
+    assertTrue(position.test(ConditionContext.builder().present(true)
+        .x(2.0).y(5.0).z(8.0).build()));
+    assertFalse(position.test(ConditionContext.builder().present(true)
+        .x(0.0).y(5.0).z(8.0).build()));
+
+    Condition dimension = serializer.read(serializer.write(
+        Conditions.dimension(Key.key("minecraft:the_nether"))));
+    assertTrue(dimension.test(ConditionContext.builder()
+        .worldKey(Key.key("minecraft:the_nether")).build()));
+    assertFalse(dimension.test(ConditionContext.builder()
+        .worldKey(Key.key("minecraft:overworld")).build()));
+
+    Condition light = serializer.read(serializer.write(Conditions.light(5, 10, null, null, null, null)));
+    assertTrue(light.test(ConditionContext.builder().lightLevel(7).build()));
+    assertFalse(light.test(ConditionContext.builder().lightLevel(11).build()));
+
+    Condition sky = serializer.read(serializer.write(Conditions.canSeeSky(true)));
+    assertTrue(sky.test(ConditionContext.builder().canSeeSky(true).build()));
+    assertFalse(sky.test(ConditionContext.builder().canSeeSky(false).build()));
+  }
+
+  @Test
+  void readsVanillaNewConditionJson() {
+    Condition time = serializer.read("""
+        {"condition":"minecraft:time_check","value":{"min":10,"max":20},"period":30}
+        """.getBytes(StandardCharsets.UTF_8));
+    assertTrue(time.test(ConditionContext.builder().dayTime(40L).build()));
+
+    Condition scores = serializer.read("""
+        {"condition":"minecraft:entity_scores","entity":"this",
+         "scores":{"points":4,"wins":{"min":2,"max":5}}}
+        """.getBytes(StandardCharsets.UTF_8));
+    assertTrue(scores.test(ConditionContext.builder().scores(Map.of("points", 4, "wins", 3)).build()));
+    assertFalse(scores.test(ConditionContext.builder().scores(Map.of("points", 5, "wins", 3)).build()));
+
+    Condition killed = serializer.read("""
+        {"condition":"minecraft:killed_by_player","value":true}
+        """.getBytes(StandardCharsets.UTF_8));
+    assertTrue(killed.test(ConditionContext.builder().attackingPlayer(true).build()));
+
+    Condition location = serializer.read("""
+        {"condition":"minecraft:location_check","predicate":{
+          "position":{"x":{"min":1,"max":3},"y":5,"z":{"min":7}},
+          "dimension":"minecraft:the_nether",
+          "light":{"light":{"min":5,"max":10}},
+          "can_see_sky":true}}
+        """.getBytes(StandardCharsets.UTF_8));
+    assertTrue(location.test(ConditionContext.builder().x(2.0).y(5.0).z(8.0)
+        .worldKey(Key.key("minecraft:the_nether")).lightLevel(7).canSeeSky(true).build()));
+    assertFalse(location.test(ConditionContext.builder().x(2.0).y(5.0).z(8.0)
+        .worldKey(Key.key("minecraft:the_nether")).lightLevel(7).canSeeSky(false).build()));
+  }
+
+  @Test
+  void unsupportedVanillaConditionsExplainWhy() {
+    Map<String, String> unsupported = Map.ofEntries(
+        Map.entry("match_tool", "requires tool item from loot execution context"),
+        Map.entry("survives_explosion", "requires explosion radius from loot execution context"),
+        Map.entry("random_chance", "requires loot execution RNG context"),
+        Map.entry("random_chance_with_enchanted_bonus", "requires attacker enchantment level from loot context"),
+        Map.entry("table_bonus", "requires tool enchantment level from loot context"),
+        Map.entry("enchantment_active_check", "requires enchanted_location loot context"),
+        Map.entry("damage_source_properties", "requires damage source and attacker entities (multi-entity snapshot)"),
+        Map.entry("value_check", "requires vanilla number providers"),
+        Map.entry("reference", "requires predicate file resolver"),
+        Map.entry("environment_attribute_check", "requires environment attribute values in snapshot"),
+        Map.entry("match_block", "upcoming JE 26.3 (replaces block_state_property)"));
+    for (var entry : unsupported.entrySet()) {
+      String json = "{\"condition\":\"minecraft:" + entry.getKey() + "\"}";
+      IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
+          () -> serializer.read(json.getBytes(StandardCharsets.UTF_8)));
+      assertTrue(error.getMessage().contains("Unsupported vanilla condition"));
+      assertTrue(error.getMessage().contains(entry.getValue()));
+    }
+  }
+
+  @Test
+  void lightSkyBoundsCannotBeWrittenToVanillaJson() {
+    IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
+        () -> serializer.write(Conditions.light(null, null, 5, 10, null, null)));
+    assertTrue(error.getMessage().contains("sky/block bounds cannot be expressed in vanilla JE 26.2"));
+  }
+
+  @Test
+  void readsModularJobsLevelResourceAlias() {
+    String json = """
+        {"condition":"modularjobs:player_resource","resource":"level",
+         "operator":"equal","value":5}
+        """;
+    Condition condition = serializer.read(json.getBytes(StandardCharsets.UTF_8));
+    assertTrue(condition.test(ConditionContext.builder().xpLevel(5.0).build()));
+    assertFalse(condition.test(ConditionContext.builder().xpLevel(4.0).build()));
+  }
+
+  @Test
+  void readsVanillaLocationPredicateVariantsIndividually() {
+    String[] jsons = {
+        "{\"condition\":\"minecraft:location_check\",\"predicate\":{\"position\":{\"x\":2}}}",
+        "{\"condition\":\"minecraft:location_check\",\"predicate\":{\"dimension\":\"minecraft:overworld\"}}",
+        "{\"condition\":\"minecraft:location_check\",\"predicate\":{\"light\":{\"light\":7}}}",
+        "{\"condition\":\"minecraft:location_check\",\"predicate\":{\"can_see_sky\":true}}"
+    };
+    Condition[] conditions = new Condition[jsons.length];
+    for (int i = 0; i < jsons.length; i++) {
+      conditions[i] = serializer.read(jsons[i].getBytes(StandardCharsets.UTF_8));
+    }
+    assertTrue(conditions[0].test(ConditionContext.builder().x(2.0).y(0.0).z(0.0).build()));
+    assertTrue(conditions[1].test(ConditionContext.builder()
+        .worldKey(Key.key("minecraft:overworld")).build()));
+    assertTrue(conditions[2].test(ConditionContext.builder().lightLevel(7).build()));
+    assertTrue(conditions[3].test(ConditionContext.builder().canSeeSky(true).build()));
+  }
 }
