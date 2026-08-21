@@ -3,6 +3,7 @@ package dev.mintychochip.databag;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Map;
 import java.util.Set;
 import net.kyori.adventure.key.Key;
 
@@ -79,6 +80,41 @@ public final class Conditions {
 
   public static Condition fluid(Key fluidKey) {
     return new FluidCondition(Objects.requireNonNull(fluidKey));
+  }
+
+  public static Condition timeCheck(Long min, Long max, Long period) {
+    return new TimeCheckCondition(min, max, period);
+  }
+
+  public static Condition entityScores(Map<String, EntityScoresCondition.Bound> scores) {
+    return new EntityScoresCondition(Objects.requireNonNull(scores));
+  }
+
+  public static Condition killedByPlayer(boolean expected) {
+    return new KilledByPlayerCondition(expected);
+  }
+
+  public static Condition position(
+      Double minX, Double maxX, Double minY, Double maxY, Double minZ, Double maxZ) {
+    return new PositionCondition(minX, maxX, minY, maxY, minZ, maxZ);
+  }
+
+  public static Condition dimension(Key dimensionKey) {
+    return new DimensionCondition(Objects.requireNonNull(dimensionKey));
+  }
+
+  public static Condition light(
+      Integer minLevel,
+      Integer maxLevel,
+      Integer minSky,
+      Integer maxSky,
+      Integer minBlock,
+      Integer maxBlock) {
+    return new LightCondition(minLevel, maxLevel, minSky, maxSky, minBlock, maxBlock);
+  }
+
+  public static Condition canSeeSky(boolean expected) {
+    return new CanSeeSkyCondition(expected);
   }
 
   public static Condition playerResource(

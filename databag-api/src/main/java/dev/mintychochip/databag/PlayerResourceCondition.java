@@ -12,7 +12,7 @@ public record PlayerResourceCondition(
   public boolean test(ConditionContext context) {
     boolean allowed = switch (type) {
       case HEALTH -> context.livingPresent();
-      case HUNGER, EXPERIENCE -> context.present();
+      case HUNGER, EXPERIENCE, LEVEL, ABSORPTION, AIR -> context.present();
     };
     if (!allowed) {
       return false;
@@ -21,6 +21,9 @@ public record PlayerResourceCondition(
       case HEALTH -> context.health();
       case HUNGER -> context.hunger();
       case EXPERIENCE -> context.experience();
+      case LEVEL -> context.xpLevel();
+      case ABSORPTION -> context.absorption();
+      case AIR -> context.airRemaining();
     };
     if (actual == null) {
       return false;

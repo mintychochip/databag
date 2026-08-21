@@ -6,5 +6,8 @@ package dev.mintychochip.databag;
 public enum PlayerResourceType {
   HEALTH,
   HUNGER,
-  EXPERIENCE
+  EXPERIENCE,
+  LEVEL,
+  ABSORPTION,
+  AIR
 }

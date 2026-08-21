@@ -42,6 +42,19 @@ public record ConditionContext(
     Set<String> jobKeys,
     @Nullable Key blockId,
     Map<String, String> blockProperties,
+    @Nullable Long dayTime,
+    @Nullable Double xpLevel,
+    @Nullable Double absorption,
+    @Nullable Double airRemaining,
+    @Nullable Boolean attackingPlayer,
+    @Nullable Double x,
+    @Nullable Double y,
+    @Nullable Double z,
+    @Nullable Integer lightLevel,
+    @Nullable Integer skyLight,
+    @Nullable Integer blockLight,
+    @Nullable Boolean canSeeSky,
+    Map<String, Integer> scores,
     DataBag extras
 ) {
 
@@ -49,6 +62,7 @@ public record ConditionContext(
     effects = Map.copyOf(effects == null ? Map.of() : effects);
     jobKeys = Set.copyOf(jobKeys == null ? Set.of() : jobKeys);
     blockProperties = Map.copyOf(blockProperties == null ? Map.of() : blockProperties);
+    scores = Map.copyOf(scores == null ? Map.of() : scores);
     extras = extras == null ? DataBag.create() : DataBag.fromBytes(extras.toBytes());
   }
 
@@ -91,6 +105,19 @@ public record ConditionContext(
     private Set<String> jobKeys = Set.of();
     private @Nullable Key blockId;
     private Map<String, String> blockProperties = Map.of();
+    private @Nullable Long dayTime;
+    private @Nullable Double xpLevel;
+    private @Nullable Double absorption;
+    private @Nullable Double airRemaining;
+    private @Nullable Boolean attackingPlayer;
+    private @Nullable Double x;
+    private @Nullable Double y;
+    private @Nullable Double z;
+    private @Nullable Integer lightLevel;
+    private @Nullable Integer skyLight;
+    private @Nullable Integer blockLight;
+    private @Nullable Boolean canSeeSky;
+    private Map<String, Integer> scores = Map.of();
     private DataBag extras = DataBag.create();
     private boolean livingPresentOverridden;
 
@@ -202,6 +229,70 @@ public record ConditionContext(
       return this;
     }
 
+    public Builder dayTime(@Nullable Long dayTime) {
+      this.dayTime = dayTime;
+      return this;
+    }
+
+    public Builder xpLevel(@Nullable Double xpLevel) {
+      this.xpLevel = xpLevel;
+      return this;
+    }
+
+    public Builder absorption(@Nullable Double absorption) {
+      this.absorption = absorption;
+      return this;
+    }
+
+    public Builder airRemaining(@Nullable Double airRemaining) {
+      this.airRemaining = airRemaining;
+      return this;
+    }
+
+    public Builder attackingPlayer(@Nullable Boolean attackingPlayer) {
+      this.attackingPlayer = attackingPlayer;
+      return this;
+    }
+
+    public Builder x(@Nullable Double x) {
+      this.x = x;
+      return this;
+    }
+
+    public Builder y(@Nullable Double y) {
+      this.y = y;
+      return this;
+    }
+
+    public Builder z(@Nullable Double z) {
+      this.z = z;
+      return this;
+    }
+
+    public Builder lightLevel(@Nullable Integer lightLevel) {
+      this.lightLevel = lightLevel;
+      return this;
+    }
+
+    public Builder skyLight(@Nullable Integer skyLight) {
+      this.skyLight = skyLight;
+      return this;
+    }
+
+    public Builder blockLight(@Nullable Integer blockLight) {
+      this.blockLight = blockLight;
+      return this;
+    }
+
+    public Builder canSeeSky(@Nullable Boolean canSeeSky) {
+      this.canSeeSky = canSeeSky;
+      return this;
+    }
+
+    public Builder scores(Map<String, Integer> scores) {
+      this.scores = Objects.requireNonNull(scores);
+      return this;
+    }
     public Builder experience(@Nullable Double experience) {
       this.experience = experience;
       return this;
@@ -258,6 +349,19 @@ public record ConditionContext(
           jobKeys,
           blockId,
           blockProperties,
+          dayTime,
+          xpLevel,
+          absorption,
+          airRemaining,
+          attackingPlayer,
+          x,
+          y,
+          z,
+          lightLevel,
+          skyLight,
+          blockLight,
+          canSeeSky,
+          scores,
           extras);
     }
   }
