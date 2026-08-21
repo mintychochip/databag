@@ -97,9 +97,11 @@ public final class GsonConditionSerializer implements ConditionSerializer {
       case WeatherCondition weather -> weatherJson(weather.state());
       case FluidCondition fluid -> locationFluid(fluid.fluidKey().asString());
       case PlayerResourceCondition resource -> playerResourceJson(resource);
-      case PotionPresentCondition potion -> entityEffect(potion.effectKey().asString(), null, null);
-      case PotionAmplifierCondition potion -> entityEffect(potion.effectKey().asString(), potion, null);
-      case PotionDurationCondition potion -> entityEffect(potion.effectKey().asString(), null, potion);
+      case PotionPresentCondition potion -> effectRoot(potion.effectKey().asString(), new JsonObject());
+      case PotionAmplifierCondition potion -> effectJson(
+          potion.effectKey().asString(), "amplifier", potion.operator(), potion.expected());
+      case PotionDurationCondition potion -> effectJson(
+          potion.effectKey().asString(), "duration", potion.operator(), potion.expected());
       case JobCondition job -> jobJson(job);
       default -> writeRegistered(condition);
     };
@@ -195,13 +197,23 @@ public final class GsonConditionSerializer implements ConditionSerializer {
     if (predicate.has("type_specific") && predicate.get("type_specific").isJsonObject()) {
       JsonObject specific = predicate.getAsJsonObject("type_specific");
       if (specific.has("gamemode")) {
-        parts.add(Conditions.gameMode(firstString(specific.get("gamemode"))));
+        Condition modes = anyOfConditions(stringList(specific.get("gamemode")).stream()
+            .map(Conditions::gameMode)
+            .toList());
+        if (modes != null) {
+          parts.add(modes);
+        }
       }
     }
     if (predicate.has("location") && predicate.get("location").isJsonObject()) {
       JsonObject location = predicate.getAsJsonObject("location");
       if (location.has("biomes")) {
-        parts.add(Conditions.biome(Key.key(firstString(location.get("biomes")))));
+        Condition biomes = anyOfConditions(stringList(location.get("biomes")).stream()
+            .map(biome -> Conditions.biome(Key.key(biome)))
+            .toList());
+        if (biomes != null) {
+          parts.add(biomes);
+        }
       }
     }
     if (predicate.has("effects") && predicate.get("effects").isJsonObject()) {
@@ -220,44 +232,46 @@ public final class GsonConditionSerializer implements ConditionSerializer {
 
   private Condition readEffectEntry(String effectId, JsonElement spec) {
     Key key = Key.key(effectId);
-    if (spec == null || spec.isJsonNull() || (spec.isJsonObject() && spec.getAsJsonObject().isEmpty())) {
-      return Conditions.potionPresent(key);
-    }
-    if (!spec.isJsonObject()) {
+    if (spec == null || spec.isJsonNull() || !spec.isJsonObject() || spec.getAsJsonObject().isEmpty()) {
       return Conditions.potionPresent(key);
     }
     JsonObject obj = spec.getAsJsonObject();
+    List<Condition> parts = new ArrayList<>();
     if (obj.has("amplifier")) {
-      JsonElement amplifier = obj.get("amplifier");
-      if (amplifier.isJsonObject()) {
-        JsonObject bounds = amplifier.getAsJsonObject();
-        if (bounds.has("min")) {
-          return Conditions.potionAmplifier(
-              key, RelationalOperator.GREATER_THAN_OR_EQUAL, bounds.get("min").getAsInt());
-        }
-        if (bounds.has("max")) {
-          return Conditions.potionAmplifier(
-              key, RelationalOperator.LESS_THAN_OR_EQUAL, bounds.get("max").getAsInt());
-        }
-      } else {
-        return Conditions.potionAmplifier(key, RelationalOperator.EQUAL, amplifier.getAsInt());
-      }
+      parts.add(boundedEffect(key, true, obj.get("amplifier")));
     }
     if (obj.has("duration")) {
-      JsonElement duration = obj.get("duration");
-      if (duration.isJsonObject()) {
-        JsonObject bounds = duration.getAsJsonObject();
-        if (bounds.has("min")) {
-          return Conditions.potionDuration(
+      parts.add(boundedEffect(key, false, obj.get("duration")));
+    }
+    if (parts.isEmpty()) {
+      return Conditions.potionPresent(key);
+    }
+    if (parts.size() == 1) {
+      return parts.getFirst();
+    }
+    return Conditions.allOf(parts.toArray(Condition[]::new));
+  }
+
+  private Condition boundedEffect(Key key, boolean amplifier, JsonElement bound) {
+    if (!bound.isJsonObject()) {
+      return amplifier
+          ? Conditions.potionAmplifier(key, RelationalOperator.EQUAL, bound.getAsInt())
+          : Conditions.potionDuration(key, RelationalOperator.EQUAL, bound.getAsInt());
+    }
+    JsonObject bounds = bound.getAsJsonObject();
+    if (bounds.has("min")) {
+      return amplifier
+          ? Conditions.potionAmplifier(
+              key, RelationalOperator.GREATER_THAN_OR_EQUAL, bounds.get("min").getAsInt())
+          : Conditions.potionDuration(
               key, RelationalOperator.GREATER_THAN_OR_EQUAL, bounds.get("min").getAsInt());
-        }
-        if (bounds.has("max")) {
-          return Conditions.potionDuration(
+    }
+    if (bounds.has("max")) {
+      return amplifier
+          ? Conditions.potionAmplifier(
+              key, RelationalOperator.LESS_THAN_OR_EQUAL, bounds.get("max").getAsInt())
+          : Conditions.potionDuration(
               key, RelationalOperator.LESS_THAN_OR_EQUAL, bounds.get("max").getAsInt());
-        }
-      } else {
-        return Conditions.potionDuration(key, RelationalOperator.EQUAL, duration.getAsInt());
-      }
     }
     return Conditions.potionPresent(key);
   }
@@ -281,13 +295,23 @@ public final class GsonConditionSerializer implements ConditionSerializer {
     JsonObject predicate = json.has("predicate") ? json.getAsJsonObject("predicate") : json;
     if (predicate.has("fluid")) {
       JsonElement fluid = predicate.get("fluid");
-      String key = fluid.isJsonObject() && fluid.getAsJsonObject().has("fluids")
-          ? firstString(fluid.getAsJsonObject().get("fluids"))
-          : firstString(fluid);
-      return Conditions.fluid(Key.key(key));
+      List<String> fluids = fluid.isJsonObject() && fluid.getAsJsonObject().has("fluids")
+          ? stringList(fluid.getAsJsonObject().get("fluids"))
+          : stringList(fluid);
+      Condition anyFluid = anyOfConditions(fluids.stream()
+          .map(key -> Conditions.fluid(Key.key(key)))
+          .toList());
+      if (anyFluid != null) {
+        return anyFluid;
+      }
     }
     if (predicate.has("biomes")) {
-      return Conditions.biome(Key.key(firstString(predicate.get("biomes"))));
+      Condition anyBiome = anyOfConditions(stringList(predicate.get("biomes")).stream()
+          .map(biome -> Conditions.biome(Key.key(biome)))
+          .toList());
+      if (anyBiome != null) {
+        return anyBiome;
+      }
     }
     if (predicate.has("block") && predicate.get("block").isJsonObject()) {
       return readLocationBlock(predicate.getAsJsonObject("block"));
@@ -298,7 +322,12 @@ public final class GsonConditionSerializer implements ConditionSerializer {
   private Condition readLocationBlock(JsonObject block) {
     List<Condition> parts = new ArrayList<>();
     if (block.has("blocks")) {
-      parts.add(Conditions.blockId(Key.key(firstString(block.get("blocks")))));
+      Condition blocks = anyOfConditions(stringList(block.get("blocks")).stream()
+          .map(id -> Conditions.blockId(Key.key(id)))
+          .toList());
+      if (blocks != null) {
+        parts.add(blocks);
+      }
     } else if (block.has("block")) {
       parts.add(Conditions.blockId(Key.key(block.get("block").getAsString())));
     }
@@ -467,33 +496,41 @@ public final class GsonConditionSerializer implements ConditionSerializer {
     return root;
   }
 
-  private static JsonObject entityEffect(
-      String effect,
-      PotionAmplifierCondition amplifier,
-      PotionDurationCondition duration) {
+  /**
+   * Strict operators cannot be expressed by vanilla's inclusive min/max
+   * bounds, so they are encoded losslessly as inversions: {@code >X} as
+   * {@code not(<=X)}, {@code <X} as {@code not(>=X)}, {@code !=X} as
+   * {@code not(=X)}.
+   */
+  private static JsonElement effectJson(
+      String effect, String field, RelationalOperator operator, int expected) {
+    return switch (operator) {
+      case GREATER_THAN -> invertedJson(
+          effectJson(effect, field, RelationalOperator.LESS_THAN_OR_EQUAL, expected));
+      case LESS_THAN -> invertedJson(
+          effectJson(effect, field, RelationalOperator.GREATER_THAN_OR_EQUAL, expected));
+      case NOT_EQUAL -> invertedJson(effectJson(effect, field, RelationalOperator.EQUAL, expected));
+      case GREATER_THAN_OR_EQUAL -> effectRoot(effect, boundSpec(field, "min", expected));
+      case LESS_THAN_OR_EQUAL -> effectRoot(effect, boundSpec(field, "max", expected));
+      case EQUAL -> effectRoot(effect, plainSpec(field, expected));
+    };
+  }
+
+  private static JsonObject boundSpec(String field, String bound, int expected) {
+    JsonObject bounds = new JsonObject();
+    bounds.addProperty(bound, expected);
     JsonObject spec = new JsonObject();
-    if (amplifier != null) {
-      JsonObject bounds = new JsonObject();
-      switch (amplifier.operator()) {
-        case GREATER_THAN_OR_EQUAL, GREATER_THAN -> bounds.addProperty("min", amplifier.expected());
-        case LESS_THAN_OR_EQUAL, LESS_THAN -> bounds.addProperty("max", amplifier.expected());
-        case EQUAL, NOT_EQUAL -> spec.addProperty("amplifier", amplifier.expected());
-      }
-      if (!bounds.entrySet().isEmpty()) {
-        spec.add("amplifier", bounds);
-      }
-    }
-    if (duration != null) {
-      JsonObject bounds = new JsonObject();
-      switch (duration.operator()) {
-        case GREATER_THAN_OR_EQUAL, GREATER_THAN -> bounds.addProperty("min", duration.expected());
-        case LESS_THAN_OR_EQUAL, LESS_THAN -> bounds.addProperty("max", duration.expected());
-        case EQUAL, NOT_EQUAL -> spec.addProperty("duration", duration.expected());
-      }
-      if (!bounds.entrySet().isEmpty()) {
-        spec.add("duration", bounds);
-      }
-    }
+    spec.add(field, bounds);
+    return spec;
+  }
+
+  private static JsonObject plainSpec(String field, int expected) {
+    JsonObject spec = new JsonObject();
+    spec.addProperty(field, expected);
+    return spec;
+  }
+
+  private static JsonObject effectRoot(String effect, JsonObject spec) {
     JsonObject effects = new JsonObject();
     effects.add(effect, spec);
     JsonObject predicate = new JsonObject();
@@ -615,11 +652,32 @@ public final class GsonConditionSerializer implements ConditionSerializer {
     return element.getAsString();
   }
 
+  private static List<String> stringList(JsonElement element) {
+    if (element.isJsonArray()) {
+      List<String> values = new ArrayList<>();
+      for (JsonElement entry : element.getAsJsonArray()) {
+        values.add(entry.getAsString());
+      }
+      return values;
+    }
+    return List.of(element.getAsString());
+  }
+
+  private static Condition anyOfConditions(List<Condition> terms) {
+    if (terms.isEmpty()) {
+      return null;
+    }
+    if (terms.size() == 1) {
+      return terms.getFirst();
+    }
+    return Conditions.anyOf(terms.toArray(Condition[]::new));
+  }
+
   private static String liquidKey(JsonObject json) {
     if (json.has("value") && json.get("value").isJsonPrimitive()) {
       return json.get("value").getAsString();
     }
-    return "minecraft:water";
+    throw new IllegalArgumentException("liquid condition requires 'value'");
   }
 
   private static PlayerResourceType parseResource(String raw) {

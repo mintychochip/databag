@@ -18,7 +18,7 @@ public record WorldCondition(String worldName) implements Condition {
 
   @Override
   public boolean test(ConditionContext context) {
-    if (!context.present()) {
+    if (context.worldName() == null && context.worldKey() == null) {
       return false;
     }
     String expected = worldName.toLowerCase(Locale.ROOT);

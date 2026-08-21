@@ -48,4 +48,21 @@ class BlockConditionTest {
   void missingPropertyFailsClosed() {
     assertFalse(Conditions.blockProperty("waterlogged", "true").test(chestFacingNorth()));
   }
+
+  @Test
+  void locationConditionsMatchBlockSnapshot() {
+    ConditionContext blockInWorld = ConditionContext.builder()
+        .present(false)
+        .livingPresent(false)
+        .blockId(CHEST)
+        .biome(Key.key("minecraft:plains"))
+        .worldName("world")
+        .weather(WeatherState.CLEAR)
+        .build();
+    assertTrue(Conditions.biome(Key.key("minecraft:plains")).test(blockInWorld));
+    assertTrue(Conditions.world("world").test(blockInWorld));
+    assertTrue(Conditions.weather(WeatherState.CLEAR).test(blockInWorld));
+    // Field absent still fails closed.
+    assertFalse(Conditions.biome(Key.key("minecraft:plains")).test(chestFacingNorth()));
+  }
 }

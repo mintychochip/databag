@@ -9,7 +9,7 @@ public record BiomeCondition(Key biomeKey) implements Condition {
 
   @Override
   public boolean test(ConditionContext context) {
-    if (!context.present() || context.biome() == null) {
+    if (context.biome() == null) {
       return false;
     }
     return keysEqual(biomeKey, context.biome());

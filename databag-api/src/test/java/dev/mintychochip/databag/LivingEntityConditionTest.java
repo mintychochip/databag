@@ -77,4 +77,26 @@ class LivingEntityConditionTest {
         .build();
     assertTrue(Conditions.sneaking(true).test(zombieSneaking));
   }
+
+  @Test
+  void locationConditionsMatchNonPlayerLivingSnapshot() {
+    ConditionContext zombieInWorld = ConditionContext.builder()
+        .present(false)
+        .livingPresent(true)
+        .entityType(ZOMBIE)
+        .biome(Key.key("minecraft:badlands"))
+        .worldName("world_nether")
+        .worldKey(Key.key("minecraft:the_nether"))
+        .weather(WeatherState.RAINING)
+        .fluid(Key.key("minecraft:water"))
+        .build();
+    assertTrue(Conditions.biome(Key.key("minecraft:badlands")).test(zombieInWorld));
+    assertTrue(Conditions.world("world_nether").test(zombieInWorld));
+    assertTrue(Conditions.world("minecraft:the_nether").test(zombieInWorld));
+    assertTrue(Conditions.weather(WeatherState.RAINING).test(zombieInWorld));
+    assertTrue(Conditions.fluid(Key.key("minecraft:water")).test(zombieInWorld));
+    // Field absent still fails closed.
+    assertFalse(Conditions.biome(Key.key("minecraft:badlands")).test(livingZombie()));
+    assertFalse(Conditions.fluid(Key.key("minecraft:water")).test(livingZombie()));
+  }
 }
