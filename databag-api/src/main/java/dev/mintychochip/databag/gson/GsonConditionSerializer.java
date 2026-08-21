@@ -26,6 +26,8 @@ import dev.mintychochip.databag.Conditions;
 import dev.mintychochip.databag.DataBag;
 import dev.mintychochip.databag.DimensionCondition;
 import dev.mintychochip.databag.EntityScoresCondition;
+import dev.mintychochip.databag.EntityTarget;
+import dev.mintychochip.databag.EntityTargetCondition;
 import dev.mintychochip.databag.EntityTypeCondition;
 import dev.mintychochip.databag.FluidCondition;
 import dev.mintychochip.databag.FlyingCondition;
@@ -83,6 +85,7 @@ public final class GsonConditionSerializer implements ConditionSerializer {
 
   JsonElement writeElement(Condition condition) {
     return switch (condition) {
+      case EntityTargetCondition targeted -> writeTargeted(targeted);
       case AlwaysCondition ignored -> allOfJson(List.of());
       case AllOfCondition all -> all.terms().isEmpty()
           ? allOfJson(List.of())
@@ -121,6 +124,25 @@ public final class GsonConditionSerializer implements ConditionSerializer {
       case CanSeeSkyCondition canSeeSky -> canSeeSkyLocationCheckJson(canSeeSky);
       default -> writeRegistered(condition);
     };
+  }
+
+  private JsonElement writeTargeted(EntityTargetCondition targeted) {
+    JsonElement inner = writeElement(targeted.condition());
+    if (targeted.target() == EntityTarget.THIS) {
+      return inner;
+    }
+    if (!inner.isJsonObject()) {
+      throw new IllegalArgumentException("Targeted condition inner JSON must be an object");
+    }
+    JsonObject object = inner.getAsJsonObject();
+    String condition = object.has("condition") ? object.get("condition").getAsString() : "";
+    if (!"minecraft:entity_properties".equals(condition)
+        && !"minecraft:entity_scores".equals(condition)) {
+      throw new IllegalArgumentException(
+          "Targeted condition inner JSON must be entity_properties or entity_scores");
+    }
+    object.addProperty("entity", targeted.target().jsonName());
+    return object;
   }
 
   private JsonObject writeRegistered(Condition condition) {
@@ -195,9 +217,7 @@ public final class GsonConditionSerializer implements ConditionSerializer {
   }
 
   private Condition readEntityProperties(JsonObject json) {
-    if (json.has("entity") && !"this".equals(json.get("entity").getAsString())) {
-      throw new IllegalArgumentException("entity_properties only supports entity=this");
-    }
+    EntityTarget target = readEntityTarget(json);
     JsonObject predicate = json.has("predicate") && json.get("predicate").isJsonObject()
         ? json.getAsJsonObject("predicate")
         : json;
@@ -246,10 +266,9 @@ public final class GsonConditionSerializer implements ConditionSerializer {
     if (parts.isEmpty()) {
       throw new IllegalArgumentException("entity_properties predicate has no supported fields");
     }
-    if (parts.size() == 1) {
-      return parts.getFirst();
-    }
-    return Conditions.allOf(parts.toArray(Condition[]::new));
+    return wrapEntityTarget(target, parts.size() == 1
+        ? parts.getFirst()
+        : Conditions.allOf(parts.toArray(Condition[]::new)));
   }
 
   private Condition readEffectEntry(String effectId, JsonElement spec) {
@@ -464,9 +483,7 @@ public final class GsonConditionSerializer implements ConditionSerializer {
   }
 
   private Condition readEntityScores(JsonObject json) {
-    if (json.has("entity") && !"this".equals(json.get("entity").getAsString())) {
-      throw new IllegalArgumentException("entity_scores only supports entity=this");
-    }
+    EntityTarget target = readEntityTarget(json);
     if (!json.has("scores") || !json.get("scores").isJsonObject()) {
       throw new IllegalArgumentException("entity_scores requires scores");
     }
@@ -474,7 +491,30 @@ public final class GsonConditionSerializer implements ConditionSerializer {
     for (var entry : json.getAsJsonObject("scores").entrySet()) {
       scores.put(entry.getKey(), readScoreBound(entry.getValue()));
     }
-    return Conditions.entityScores(scores);
+    return wrapEntityTarget(target, Conditions.entityScores(scores));
+  }
+
+  private static EntityTarget readEntityTarget(JsonObject json) {
+    if (!json.has("entity")) {
+      return EntityTarget.THIS;
+    }
+    return parseEntityTarget(json.get("entity").getAsString());
+  }
+
+  private static EntityTarget parseEntityTarget(String raw) {
+    for (EntityTarget target : EntityTarget.values()) {
+      if (target.jsonName().equals(raw)) {
+        return target;
+      }
+    }
+    throw new IllegalArgumentException("Unknown entity target: " + raw);
+  }
+
+  private static Condition wrapEntityTarget(EntityTarget target, Condition inner) {
+    if (target == EntityTarget.THIS) {
+      return inner;
+    }
+    return Conditions.targeted(target, inner);
   }
 
   private Condition readKilledByPlayer(JsonObject json) {
@@ -989,7 +1029,7 @@ public final class GsonConditionSerializer implements ConditionSerializer {
       case "table_bonus" -> "requires tool enchantment level from loot context";
       case "enchantment_active_check" -> "requires enchanted_location loot context";
       case "damage_source_properties" ->
-          "requires damage source and attacker entities (multi-entity snapshot)";
+          "requires damage source capture in snapshot; attacker slots exist but damage type/tags do not";
       case "value_check" -> "requires vanilla number providers";
       case "reference" -> "requires predicate file resolver";
       case "environment_attribute_check" -> "requires environment attribute values in snapshot";

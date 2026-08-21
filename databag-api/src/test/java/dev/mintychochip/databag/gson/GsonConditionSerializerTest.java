@@ -14,6 +14,8 @@ import dev.mintychochip.databag.Condition;
 import dev.mintychochip.databag.ConditionContext;
 import dev.mintychochip.databag.ConditionSerializer;
 import dev.mintychochip.databag.Conditions;
+import dev.mintychochip.databag.EntityTarget;
+import dev.mintychochip.databag.EntityTargetCondition;
 import dev.mintychochip.databag.PotionEffectSnapshot;
 import dev.mintychochip.databag.RelationalOperator;
 import dev.mintychochip.databag.SneakingCondition;
@@ -222,10 +224,17 @@ class GsonConditionSerializerTest {
 
     for (boolean expected : new boolean[] {true, false}) {
       Condition killed = serializer.read(serializer.write(Conditions.killedByPlayer(expected)));
-      assertTrue(killed.test(ConditionContext.builder().present(true)
-          .attackingPlayer(expected).build()));
-      assertFalse(killed.test(ConditionContext.builder().present(true)
-          .attackingPlayer(!expected).build()));
+      ConditionContext withAttackingPlayer = ConditionContext.builder().present(true)
+          .attackingPlayer(ConditionContext.builder().present(true).build())
+          .build();
+      ConditionContext withoutAttackingPlayer = ConditionContext.builder().present(true).build();
+      if (expected) {
+        assertTrue(killed.test(withAttackingPlayer));
+        assertFalse(killed.test(withoutAttackingPlayer));
+      } else {
+        assertTrue(killed.test(withoutAttackingPlayer));
+        assertFalse(killed.test(withAttackingPlayer));
+      }
     }
 
     Condition position = serializer.read(serializer.write(
@@ -268,7 +277,9 @@ class GsonConditionSerializerTest {
     Condition killed = serializer.read("""
         {"condition":"minecraft:killed_by_player","value":true}
         """.getBytes(StandardCharsets.UTF_8));
-    assertTrue(killed.test(ConditionContext.builder().attackingPlayer(true).build()));
+    assertTrue(killed.test(ConditionContext.builder()
+        .attackingPlayer(ConditionContext.builder().present(true).build())
+        .build()));
 
     Condition location = serializer.read("""
         {"condition":"minecraft:location_check","predicate":{
@@ -292,7 +303,8 @@ class GsonConditionSerializerTest {
         Map.entry("random_chance_with_enchanted_bonus", "requires attacker enchantment level from loot context"),
         Map.entry("table_bonus", "requires tool enchantment level from loot context"),
         Map.entry("enchantment_active_check", "requires enchanted_location loot context"),
-        Map.entry("damage_source_properties", "requires damage source and attacker entities (multi-entity snapshot)"),
+        Map.entry("damage_source_properties",
+            "requires damage source capture in snapshot; attacker slots exist but damage type/tags do not"),
         Map.entry("value_check", "requires vanilla number providers"),
         Map.entry("reference", "requires predicate file resolver"),
         Map.entry("environment_attribute_check", "requires environment attribute values in snapshot"),
@@ -341,5 +353,62 @@ class GsonConditionSerializerTest {
         .worldKey(Key.key("minecraft:overworld")).build()));
     assertTrue(conditions[2].test(ConditionContext.builder().lightLevel(7).build()));
     assertTrue(conditions[3].test(ConditionContext.builder().canSeeSky(true).build()));
+  }
+
+  @Test
+  void targetedConditionEvaluatesNestedSlot() {
+    Condition attackerOnFire = Conditions.targeted(
+        EntityTarget.ATTACKER, Conditions.onFire(true));
+    ConditionContext withAttacker = ConditionContext.builder().present(true)
+        .attacker(ConditionContext.builder().present(true).onFire(true).build())
+        .build();
+    ConditionContext attackerCalm = ConditionContext.builder().present(true)
+        .attacker(ConditionContext.builder().present(true).onFire(false).build())
+        .build();
+    assertTrue(attackerOnFire.test(withAttacker));
+    assertFalse(attackerOnFire.test(attackerCalm));
+    assertFalse(attackerOnFire.test(ConditionContext.builder().present(true).build()));
+  }
+
+  @Test
+  void readsEntityPropertiesWithNonThisTarget() {
+    String json = """
+        {
+          "condition": "minecraft:entity_properties",
+          "entity": "attacking_player",
+          "predicate": { "flags": { "is_sneaking": true } }
+        }
+        """;
+    EntityTargetCondition condition = assertInstanceOf(
+        EntityTargetCondition.class, serializer.read(json.getBytes(StandardCharsets.UTF_8)));
+    assertEquals(EntityTarget.ATTACKING_PLAYER, condition.target());
+    assertTrue(condition.test(ConditionContext.builder().present(true)
+        .attackingPlayer(ConditionContext.builder().present(true).sneaking(true).build())
+        .build()));
+    assertFalse(condition.test(ConditionContext.builder().present(true).build()));
+  }
+
+  @Test
+  void writesTargetedConditionAsVanillaEntityField() {
+    byte[] bytes = serializer.write(Conditions.targeted(
+        EntityTarget.ATTACKER, Conditions.sneaking(true)));
+    JsonObject json = JsonParser.parseString(new String(bytes, StandardCharsets.UTF_8))
+        .getAsJsonObject();
+    assertEquals("minecraft:entity_properties", json.get("condition").getAsString());
+    assertEquals("attacker", json.get("entity").getAsString());
+    EntityTargetCondition back = assertInstanceOf(
+        EntityTargetCondition.class, serializer.read(bytes));
+    assertEquals(EntityTarget.ATTACKER, back.target());
+  }
+
+  @Test
+  void unknownEntityTargetThrowsOnRead() {
+    String json = """
+        { "condition": "minecraft:entity_properties", "entity": "vehicle",
+          "predicate": { "flags": { "is_sneaking": true } } }
+        """;
+    IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
+        () -> serializer.read(json.getBytes(StandardCharsets.UTF_8)));
+    assertTrue(error.getMessage().contains("Unknown entity target"));
   }
 }

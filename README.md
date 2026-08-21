@@ -111,6 +111,30 @@ PaperConditionContexts.fromLiving(zombie);
 PaperConditionContexts.fromBlock(block);
 ```
 
+Death events snapshot nested attacker contexts, and a condition can target a
+specific slot instead of `this`:
+
+```java
+import dev.mintychochip.databag.EntityTarget;
+
+var ctx = PaperConditionContexts.fromDeath(
+    victim, Set.of("modularjobs:miner"), attacker, directAttacker, attackingPlayer);
+
+// evaluated against the attacker slot, not the victim
+Condition attackerOnFire =
+    Conditions.targeted(EntityTarget.ATTACKER, Conditions.onFire(true));
+```
+
+In vanilla JSON the target rides the `entity` field:
+
+```json
+{
+  "condition": "minecraft:entity_properties",
+  "entity": "attacker",
+  "predicate": { "flags": { "is_on_fire": true } }
+}
+```
+
 ## JSON (vanilla loot-condition shape)
 
 ```java

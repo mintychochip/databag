@@ -94,6 +94,11 @@ public final class Conditions {
     return new KilledByPlayerCondition(expected);
   }
 
+  public static Condition targeted(EntityTarget target, Condition condition) {
+    return new EntityTargetCondition(
+        Objects.requireNonNull(target), Objects.requireNonNull(condition));
+  }
+
   public static Condition position(
       Double minX, Double maxX, Double minY, Double maxY, Double minZ, Double maxZ) {
     return new PositionCondition(minX, maxX, minY, maxY, minZ, maxZ);

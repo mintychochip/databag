@@ -85,6 +85,51 @@ public final class PaperConditionContexts {
   }
 
   /**
+   * Snapshot of a death victim with nested attacker contexts.
+   */
+  public static ConditionContext fromDeath(
+      @Nullable LivingEntity victim,
+      @Nullable Set<String> jobKeys,
+      @Nullable LivingEntity attacker,
+      @Nullable LivingEntity directAttacker,
+      @Nullable Player attackingPlayer) {
+    ConditionContext.Builder builder;
+    if (victim instanceof Player player) {
+      if (player == null || !player.isOnline()) {
+        builder = ConditionContext.builder().present(false).livingPresent(false);
+      } else {
+        builder =
+            livingBuilder(player)
+                .present(true)
+                .entityType(Key.key("minecraft:player"))
+                .flying(player.isFlying())
+                .gameMode(player.getGameMode().name().toLowerCase(Locale.ROOT))
+                .hunger((double) player.getFoodLevel())
+                .experience((double) player.getExp())
+                .xpLevel((double) player.getLevel())
+                .absorption(player.getAbsorptionAmount())
+                .airRemaining((double) player.getRemainingAir())
+                .scores(playerScores(player))
+                .jobKeys(jobKeys == null ? Set.of() : jobKeys);
+      }
+    } else if (victim == null || victim.isDead()) {
+      builder = ConditionContext.builder().present(false).livingPresent(false);
+    } else {
+      builder = livingBuilder(victim).present(false).flying(false).gameMode(null);
+    }
+    if (attacker != null) {
+      builder.attacker(fromLiving(attacker));
+    }
+    if (directAttacker != null) {
+      builder.directAttacker(fromLiving(directAttacker));
+    }
+    if (attackingPlayer != null) {
+      builder.attackingPlayer(from(attackingPlayer));
+    }
+    return builder.build();
+  }
+
+  /**
    * Snapshot of a block (id + block-state properties) and its location weather.
    */
   public static ConditionContext fromBlock(@Nullable Block block) {

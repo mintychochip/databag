@@ -46,7 +46,11 @@ public record ConditionContext(
     @Nullable Double xpLevel,
     @Nullable Double absorption,
     @Nullable Double airRemaining,
-    @Nullable Boolean attackingPlayer,
+    @Nullable ConditionContext attacker,
+    @Nullable ConditionContext directAttacker,
+    @Nullable ConditionContext attackingPlayer,
+    @Nullable ConditionContext targetEntity,
+    @Nullable ConditionContext interactingEntity,
     @Nullable Double x,
     @Nullable Double y,
     @Nullable Double z,
@@ -109,7 +113,11 @@ public record ConditionContext(
     private @Nullable Double xpLevel;
     private @Nullable Double absorption;
     private @Nullable Double airRemaining;
-    private @Nullable Boolean attackingPlayer;
+    private @Nullable ConditionContext attacker;
+    private @Nullable ConditionContext directAttacker;
+    private @Nullable ConditionContext attackingPlayer;
+    private @Nullable ConditionContext targetEntity;
+    private @Nullable ConditionContext interactingEntity;
     private @Nullable Double x;
     private @Nullable Double y;
     private @Nullable Double z;
@@ -249,8 +257,28 @@ public record ConditionContext(
       return this;
     }
 
-    public Builder attackingPlayer(@Nullable Boolean attackingPlayer) {
+    public Builder attacker(@Nullable ConditionContext attacker) {
+      this.attacker = attacker;
+      return this;
+    }
+
+    public Builder directAttacker(@Nullable ConditionContext directAttacker) {
+      this.directAttacker = directAttacker;
+      return this;
+    }
+
+    public Builder attackingPlayer(@Nullable ConditionContext attackingPlayer) {
       this.attackingPlayer = attackingPlayer;
+      return this;
+    }
+
+    public Builder targetEntity(@Nullable ConditionContext targetEntity) {
+      this.targetEntity = targetEntity;
+      return this;
+    }
+
+    public Builder interactingEntity(@Nullable ConditionContext interactingEntity) {
+      this.interactingEntity = interactingEntity;
       return this;
     }
 
@@ -353,7 +381,11 @@ public record ConditionContext(
           xpLevel,
           absorption,
           airRemaining,
+          attacker,
+          directAttacker,
           attackingPlayer,
+          targetEntity,
+          interactingEntity,
           x,
           y,
           z,

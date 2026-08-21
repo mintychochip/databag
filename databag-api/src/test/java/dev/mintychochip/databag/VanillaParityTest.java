@@ -36,11 +36,14 @@ class VanillaParityTest {
 
   @Test
   void killedByPlayerMatchesExpectedAndFailsClosed() {
-    ConditionContext killed = ConditionContext.builder().attackingPlayer(true).build();
-    ConditionContext notKilled = ConditionContext.builder().attackingPlayer(false).build();
+    ConditionContext killed = ConditionContext.builder()
+        .attackingPlayer(ConditionContext.builder().present(true).build())
+        .build();
+    ConditionContext notKilled = ConditionContext.builder().build();
     assertTrue(Conditions.killedByPlayer(true).test(killed));
     assertFalse(Conditions.killedByPlayer(false).test(killed));
     assertTrue(Conditions.killedByPlayer(false).test(notKilled));
+    assertFalse(Conditions.killedByPlayer(true).test(notKilled));
     assertFalse(Conditions.killedByPlayer(true).test(ConditionContext.absent()));
   }
 
