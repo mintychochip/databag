@@ -10,12 +10,16 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import net.kyori.adventure.key.Key;
+import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Ageable;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.potion.PotionEffect;
+import org.bukkit.scoreboard.Objective;
+import org.bukkit.scoreboard.Score;
+import org.bukkit.scoreboard.Scoreboard;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -54,6 +58,10 @@ public final class PaperConditionContexts {
         .gameMode(player.getGameMode().name().toLowerCase(Locale.ROOT))
         .hunger((double) player.getFoodLevel())
         .experience((double) player.getExp())
+        .xpLevel((double) player.getLevel())
+        .absorption(player.getAbsorptionAmount())
+        .airRemaining((double) player.getRemainingAir())
+        .scores(playerScores(player))
         .jobKeys(jobKeys == null ? Set.of() : jobKeys)
         .extras(extras == null ? DataBag.create() : extras)
         .build();
@@ -84,6 +92,7 @@ public final class PaperConditionContexts {
       return ConditionContext.absent();
     }
     World world = block.getWorld();
+    Location loc = block.getLocation();
     return ConditionContext.builder()
         .present(false)
         .livingPresent(false)
@@ -91,13 +100,23 @@ public final class PaperConditionContexts {
         .blockProperties(BlockDataStrings.properties(block.getBlockData().getAsString()))
         .worldName(world.getName())
         .worldKey(world.getKey())
-        .biome(world.getBiome(block.getLocation()).getKey())
+        .biome(world.getBiome(loc).getKey())
         .weather(weatherOf(world))
+        .x(loc.getX())
+        .y(loc.getY())
+        .z(loc.getZ())
+        .lightLevel((int) block.getLightLevel())
+        .skyLight((int) block.getLightFromSky())
+        .blockLight((int) block.getLightFromBlocks())
+        .canSeeSky(block.getLightFromSky() >= 15)
+        .dayTime(world.getFullTime())
         .build();
   }
 
   private static ConditionContext.Builder livingBuilder(LivingEntity entity) {
     World world = entity.getWorld();
+    Location loc = entity.getLocation();
+    Block block = loc.getBlock();
     Key fluid = entity.isInWater()
         ? Key.key("minecraft:water")
         : entity.isInLava() ? Key.key("minecraft:lava") : null;
@@ -118,13 +137,37 @@ public final class PaperConditionContexts {
         .swimming(entity.isSwimming())
         .baby(baby)
         .gliding(entity.isGliding())
-        .biome(world.getBiome(entity.getLocation()).getKey())
+        .biome(world.getBiome(loc).getKey())
         .worldName(world.getName())
         .worldKey(world.getKey())
         .weather(weatherOf(world))
         .fluid(fluid)
         .health(entity.getHealth())
-        .effects(effects);
+        .effects(effects)
+        .x(loc.getX())
+        .y(loc.getY())
+        .z(loc.getZ())
+        .lightLevel((int) block.getLightLevel())
+        .skyLight((int) block.getLightFromSky())
+        .blockLight((int) block.getLightFromBlocks())
+        .canSeeSky(block.getLightFromSky() >= 15)
+        .dayTime(world.getFullTime());
+  }
+
+  private static Map<String, Integer> playerScores(Player player) {
+    try {
+      Scoreboard scoreboard = player.getScoreboard();
+      Map<String, Integer> scores = new HashMap<>();
+      for (Objective objective : scoreboard.getObjectives()) {
+        Score score = objective.getScore(player.getName());
+        if (score.isScoreSet()) {
+          scores.put(objective.getName(), score.getScore());
+        }
+      }
+      return scores;
+    } catch (RuntimeException ignored) {
+      return Map.of();
+    }
   }
 
   private static WeatherState weatherOf(World world) {
