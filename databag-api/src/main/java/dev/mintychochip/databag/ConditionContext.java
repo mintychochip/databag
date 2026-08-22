@@ -1,7 +1,9 @@
 package dev.mintychochip.databag;
 
 import dev.mintychochip.databag.DataBag;
+import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Objects;
 import java.util.Set;
 import net.kyori.adventure.key.Key;
@@ -58,6 +60,40 @@ public record ConditionContext(
     @Nullable Integer skyLight,
     @Nullable Integer blockLight,
     @Nullable Boolean canSeeSky,
+    @Nullable String team,
+    @Nullable Integer ping,
+    @Nullable Integer emptyMain,
+    @Nullable Integer emptyHotbar,
+    @Nullable Integer emptyOffhand,
+    @Nullable Boolean sheared,
+    @Nullable Key woolColor,
+    @Nullable Key frogVariant,
+    @Nullable Key catVariant,
+    @Nullable Key wolfVariant,
+    @Nullable Integer tropicalFishVariant,
+    @Nullable Key tropicalFishPattern,
+    @Nullable Key tropicalFishBaseColor,
+    @Nullable Key tropicalFishPatternColor,
+    @Nullable Key villagerType,
+    @Nullable Key villagerProfession,
+    @Nullable Integer villagerLevel,
+    @Nullable Key horseColor,
+    @Nullable ItemSubject horseArmor,
+    Map<Key, Integer> itemCounts,
+    @Nullable Long playtime,
+    Set<Key> armorSet,
+    @Nullable ItemSnapshot offhandItem,
+    @Nullable ItemSubject itemSubject,
+    Map<EquipmentSlotKey, ItemSubject> equipment,
+    Set<CooldownSnapshot> activeCooldowns,
+    @Nullable Integer invulnerableTicks,
+    Set<String> advancements,
+    @Nullable ConditionContext vehicle,
+    List<ConditionContext> passengers,
+    @Nullable Integer ticksLived,
+    @Nullable Random random,
+    @Nullable ConditionContext standingOn,
+    @Nullable OffsetContextResolver offsetResolver,
     Map<String, Integer> scores,
     DataBag extras
 ) {
@@ -66,7 +102,19 @@ public record ConditionContext(
     effects = Map.copyOf(effects == null ? Map.of() : effects);
     jobKeys = Set.copyOf(jobKeys == null ? Set.of() : jobKeys);
     blockProperties = Map.copyOf(blockProperties == null ? Map.of() : blockProperties);
+    itemCounts = Map.copyOf(itemCounts == null ? Map.of() : itemCounts);
+    armorSet = Set.copyOf(armorSet == null ? Set.of() : armorSet);
+    offhandItem = offhandItem;
+    itemSubject = itemSubject;
+    equipment = Map.copyOf(equipment == null ? Map.of() : equipment);
+    activeCooldowns = Set.copyOf(activeCooldowns == null ? Set.of() : activeCooldowns);
+    invulnerableTicks = invulnerableTicks;
+    advancements = Set.copyOf(advancements == null ? Set.of() : advancements);
+    vehicle = vehicle;
+    passengers = List.copyOf(passengers == null ? List.of() : passengers);
     scores = Map.copyOf(scores == null ? Map.of() : scores);
+    standingOn = standingOn;
+    offsetResolver = offsetResolver;
     extras = extras == null ? DataBag.create() : DataBag.fromBytes(extras.toBytes());
   }
 
@@ -125,6 +173,40 @@ public record ConditionContext(
     private @Nullable Integer skyLight;
     private @Nullable Integer blockLight;
     private @Nullable Boolean canSeeSky;
+    private @Nullable String team;
+    private @Nullable Integer ping;
+    private @Nullable Integer emptyMain;
+    private @Nullable Integer emptyHotbar;
+    private @Nullable Integer emptyOffhand;
+    private @Nullable Boolean sheared;
+    private @Nullable Key woolColor;
+    private @Nullable Key frogVariant;
+    private @Nullable Key catVariant;
+    private @Nullable Key wolfVariant;
+    private @Nullable Integer tropicalFishVariant;
+    private @Nullable Key tropicalFishPattern;
+    private @Nullable Key tropicalFishBaseColor;
+    private @Nullable Key tropicalFishPatternColor;
+    private @Nullable Key villagerType;
+    private @Nullable Key villagerProfession;
+    private @Nullable Integer villagerLevel;
+    private @Nullable Key horseColor;
+    private @Nullable ItemSubject horseArmor;
+    private Map<Key, Integer> itemCounts = Map.of();
+    private @Nullable Long playtime;
+    private Set<Key> armorSet = Set.of();
+    private @Nullable ItemSnapshot offhandItem;
+    private @Nullable ItemSubject itemSubject;
+    private Map<EquipmentSlotKey, ItemSubject> equipment = Map.of();
+    private Set<CooldownSnapshot> activeCooldowns = Set.of();
+    private @Nullable Integer invulnerableTicks;
+    private Set<String> advancements = Set.of();
+    private @Nullable ConditionContext vehicle;
+    private List<ConditionContext> passengers = List.of();
+    private @Nullable Integer ticksLived;
+    private @Nullable Random random;
+    private @Nullable ConditionContext standingOn;
+    private @Nullable OffsetContextResolver offsetResolver;
     private Map<String, Integer> scores = Map.of();
     private DataBag extras = DataBag.create();
     private boolean livingPresentOverridden;
@@ -317,6 +399,174 @@ public record ConditionContext(
       return this;
     }
 
+    public Builder team(@Nullable String team) {
+      this.team = team;
+      return this;
+    }
+
+    public Builder ping(@Nullable Integer ping) {
+      this.ping = ping;
+      return this;
+    }
+
+    public Builder emptyMain(@Nullable Integer emptyMain) {
+      this.emptyMain = emptyMain;
+      return this;
+    }
+
+    public Builder emptyHotbar(@Nullable Integer emptyHotbar) {
+      this.emptyHotbar = emptyHotbar;
+      return this;
+    }
+
+    public Builder emptyOffhand(@Nullable Integer emptyOffhand) {
+      this.emptyOffhand = emptyOffhand;
+      return this;
+    }
+
+    public Builder sheared(@Nullable Boolean sheared) {
+      this.sheared = sheared;
+      return this;
+    }
+
+    public Builder woolColor(@Nullable Key woolColor) {
+      this.woolColor = woolColor;
+      return this;
+    }
+
+    public Builder frogVariant(@Nullable Key frogVariant) {
+      this.frogVariant = frogVariant;
+      return this;
+    }
+
+    public Builder catVariant(@Nullable Key catVariant) {
+      this.catVariant = catVariant;
+      return this;
+    }
+    public Builder wolfVariant(@Nullable Key wolfVariant) {
+      this.wolfVariant = wolfVariant;
+      return this;
+    }
+    public Builder tropicalFishVariant(@Nullable Integer tropicalFishVariant) {
+      this.tropicalFishVariant = tropicalFishVariant;
+      return this;
+    }
+    public Builder tropicalFishPattern(@Nullable Key tropicalFishPattern) {
+      this.tropicalFishPattern = tropicalFishPattern;
+      return this;
+    }
+    public Builder tropicalFishBaseColor(@Nullable Key tropicalFishBaseColor) {
+      this.tropicalFishBaseColor = tropicalFishBaseColor;
+      return this;
+    }
+    public Builder tropicalFishPatternColor(@Nullable Key tropicalFishPatternColor) {
+      this.tropicalFishPatternColor = tropicalFishPatternColor;
+      return this;
+    }
+    public Builder villagerType(@Nullable Key villagerType) {
+      this.villagerType = villagerType;
+      return this;
+    }
+    public Builder villagerProfession(@Nullable Key villagerProfession) {
+      this.villagerProfession = villagerProfession;
+      return this;
+    }
+    public Builder villagerLevel(@Nullable Integer villagerLevel) {
+      this.villagerLevel = villagerLevel;
+      return this;
+    }
+    public Builder horseColor(@Nullable Key horseColor) {
+      this.horseColor = horseColor;
+      return this;
+    }
+    public Builder horseArmor(@Nullable ItemSubject horseArmor) {
+      this.horseArmor = horseArmor;
+      return this;
+    }
+
+    public Builder itemCounts(Map<Key, Integer> itemCounts) {
+      this.itemCounts = Objects.requireNonNull(itemCounts);
+      return this;
+    }
+
+    public Builder playtime(@Nullable Long playtime) {
+      this.playtime = playtime;
+      return this;
+    }
+
+    public Builder armorSet(Set<Key> armorSet) {
+      this.armorSet = Objects.requireNonNull(armorSet);
+      return this;
+    }
+    public Builder offhandItem(@Nullable ItemSnapshot offhandItem) {
+      this.offhandItem = offhandItem;
+      return this;
+    }
+    public Builder itemSubject(@Nullable ItemSubject itemSubject) {
+      this.itemSubject = itemSubject;
+      return this;
+    }
+    public Builder equipment(Map<EquipmentSlotKey, ItemSubject> equipment) {
+      this.equipment = new java.util.HashMap<>(Objects.requireNonNull(equipment));
+      return this;
+    }
+    public Builder equipmentSlot(EquipmentSlotKey slot, @Nullable ItemSubject subject) {
+      if (this.equipment == null || this.equipment.isEmpty()) {
+        this.equipment = new java.util.HashMap<>();
+      }
+      this.equipment.put(Objects.requireNonNull(slot), subject == null ? ItemSubject.empty() : subject);
+      return this;
+    }
+    public Builder activeCooldowns(Set<CooldownSnapshot> activeCooldowns) {
+      this.activeCooldowns = new java.util.HashSet<>(Objects.requireNonNull(activeCooldowns));
+      return this;
+    }
+    public Builder activeCooldown(CooldownSnapshot snapshot) {
+      if (this.activeCooldowns == null || this.activeCooldowns.isEmpty()) {
+        this.activeCooldowns = new java.util.HashSet<>();
+      }
+      this.activeCooldowns.add(Objects.requireNonNull(snapshot));
+      return this;
+    }
+
+    public Builder invulnerableTicks(@Nullable Integer invulnerableTicks) {
+      this.invulnerableTicks = invulnerableTicks;
+      return this;
+    }
+
+    public Builder advancements(Set<String> advancements) {
+      this.advancements = Objects.requireNonNull(advancements);
+      return this;
+    }
+
+    public Builder vehicle(@Nullable ConditionContext vehicle) {
+      this.vehicle = vehicle;
+      return this;
+    }
+
+    public Builder passengers(List<ConditionContext> passengers) {
+      this.passengers = Objects.requireNonNull(passengers);
+      return this;
+    }
+
+    public Builder ticksLived(@Nullable Integer ticksLived) {
+      this.ticksLived = ticksLived;
+      return this;
+    }
+
+    public Builder random(@Nullable Random random) {
+      this.random = random;
+      return this;
+    }
+    public Builder standingOn(@Nullable ConditionContext standingOn) {
+      this.standingOn = standingOn;
+      return this;
+    }
+    public Builder offsetResolver(@Nullable OffsetContextResolver offsetResolver) {
+      this.offsetResolver = offsetResolver;
+      return this;
+    }
+
     public Builder scores(Map<String, Integer> scores) {
       this.scores = Objects.requireNonNull(scores);
       return this;
@@ -393,6 +643,40 @@ public record ConditionContext(
           skyLight,
           blockLight,
           canSeeSky,
+          team,
+          ping,
+          emptyMain,
+          emptyHotbar,
+          emptyOffhand,
+          sheared,
+          woolColor,
+          frogVariant,
+          catVariant,
+          wolfVariant,
+          tropicalFishVariant,
+          tropicalFishPattern,
+          tropicalFishBaseColor,
+          tropicalFishPatternColor,
+          villagerType,
+          villagerProfession,
+          villagerLevel,
+          horseColor,
+          horseArmor,
+          itemCounts,
+          playtime,
+          armorSet,
+          offhandItem,
+          itemSubject,
+          equipment,
+          activeCooldowns,
+          invulnerableTicks,
+          advancements,
+          vehicle,
+          passengers,
+          ticksLived,
+          random,
+          standingOn,
+          offsetResolver,
           scores,
           extras);
     }

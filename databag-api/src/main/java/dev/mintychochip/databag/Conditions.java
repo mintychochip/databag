@@ -6,6 +6,7 @@ import java.util.Objects;
 import java.util.Map;
 import java.util.Set;
 import net.kyori.adventure.key.Key;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Factories for the built-in {@link Condition} graph. No Bridge / Bukkit.
@@ -149,6 +150,74 @@ public final class Conditions {
     return new JobCondition(Set.of(jobKeys));
   }
 
+  public static Condition team(String teamName) {
+    return new TeamCondition(Objects.requireNonNull(teamName));
+  }
+
+  public static Condition ping(RelationalOperator operator, int milliseconds) {
+    return new PingCondition(operator, milliseconds);
+  }
+
+  public static Condition emptySlots(int minimum, boolean includeOffhand, boolean includeHotbar) {
+    return new EmptySlotsCondition(minimum, includeOffhand, includeHotbar);
+  }
+
+  public static Condition sheep(@Nullable Boolean sheared, @Nullable Key color) {
+    return new SheepCondition(sheared, color);
+  }
+
+  public static Condition frog(Key variant) {
+    return new FrogCondition(Objects.requireNonNull(variant));
+  }
+
+  public static Condition cat(Key variant) {
+    return new CatCondition(Objects.requireNonNull(variant));
+  }
+
+  public static Condition requiredItemCount(Key material, int minimum) {
+    return new RequiredItemCountCondition(Objects.requireNonNull(material), minimum);
+  }
+
+  public static Condition playtime(RelationalOperator operator, long ticks) {
+    return new PlaytimeCondition(operator, ticks);
+  }
+
+  public static Condition armorSet(Set<Key> items) {
+    return new ArmorSetCondition(Objects.requireNonNull(items));
+  }
+
+  public static Condition armorSet(Key... items) {
+    return new ArmorSetCondition(Set.of(items));
+  }
+
+  public static Condition invulnerableFrames(RelationalOperator operator, int ticks) {
+    return new InvulnerableFramesCondition(operator, ticks);
+  }
+
+  public static Condition advancement(Key advancement) {
+    return new AdvancementCondition(Objects.requireNonNull(advancement));
+  }
+
+  public static Condition vehicle(Condition condition) {
+    return new VehicleCondition(Objects.requireNonNull(condition));
+  }
+
+  public static Condition passenger(Condition condition) {
+    return new PassengerCondition(Objects.requireNonNull(condition));
+  }
+
+  public static Condition blockPropertyRange(String name, int min, int max) {
+    return new BlockPropertyRangeCondition(Objects.requireNonNull(name), min, max);
+  }
+
+  public static Condition periodicTick(int period, int offset) {
+    return new PeriodicTickCondition(period, offset);
+  }
+
+  public static Condition randomChance(double chance) {
+    return new RandomChanceCondition(chance);
+  }
+
   public static Condition allOf(Condition... terms) {
     return new AllOfCondition(List.of(terms));
   }
@@ -189,5 +258,78 @@ public final class Conditions {
     } else {
       out.add(condition);
     }
+  }
+
+  public static Condition steppingOn(Condition condition) {
+    return new SteppingOnCondition(Objects.requireNonNull(condition));
+  }
+
+  public static Condition matchBlock(Condition condition) {
+    return new MatchBlockCondition(Objects.requireNonNull(condition));
+  }
+
+  public static Condition locationOffset(
+      int offsetX, int offsetY, int offsetZ, Condition condition) {
+    return new LocationOffsetCondition(offsetX, offsetY, offsetZ, Objects.requireNonNull(condition));
+  }
+
+  public static Condition offhandItem(Set<Key> materials, int minimumAmount) {
+    return new OffhandItemCondition(materials, minimumAmount, null);
+  }
+
+  public static Condition offhandItem(
+      Set<Key> materials, int minimumAmount, @Nullable Integer customModelData) {
+    return new OffhandItemCondition(
+        materials == null ? Set.of() : materials, minimumAmount, customModelData);
+  }
+
+  public static Condition itemTypeCount(Set<Key> items, Integer minimum, Integer maximum) {
+    return new ItemTypeCountCondition(
+        items == null ? Set.of() : items, minimum, maximum);
+  }
+
+  public static Condition equipmentItem(
+      EquipmentSlotKey slot, Set<Key> items, Integer minimum, Integer maximum) {
+    return new EquipmentItemCondition(
+        Objects.requireNonNull(slot), items == null ? Set.of() : items, minimum, maximum);
+  }
+
+  public static Condition itemDurability(Integer minimum, Integer maximum) {
+    return new ItemDurabilityCondition(minimum, maximum);
+  }
+
+  public static Condition itemEnchantments(Map<Key, ItemEnchantmentsCondition.LevelBound> bounds) {
+    return new ItemEnchantmentsCondition(bounds == null ? Map.of() : bounds);
+  }
+
+  public static Condition itemTrim(@Nullable Key material, @Nullable Key pattern) {
+    return new ItemTrimCondition(material, pattern);
+  }
+
+  public static Condition wolf(@Nullable Key collarColor, @Nullable Key variant) {
+    return new WolfVariantCondition(collarColor, variant);
+  }
+
+  public static Condition tropicalFish(
+      @Nullable Integer variant, @Nullable Key pattern, @Nullable Key baseColor,
+      @Nullable Key patternColor) {
+    return new TropicalFishCondition(variant, pattern, baseColor, patternColor);
+  }
+
+  public static Condition villager(
+      @Nullable Key type, @Nullable Key profession, Integer minimumLevel, Integer maximumLevel) {
+    return new VillagerCondition(type, profession, minimumLevel, maximumLevel);
+  }
+
+  public static Condition horse(@Nullable Key color, Set<Key> armorItems) {
+    return new HorseCondition(color, armorItems == null ? Set.of() : armorItems);
+  }
+
+  public static Condition activeCooldown(
+      Key key,
+      @Nullable String source,
+      @Nullable Boolean active,
+      @Nullable Integer minimumRemainingTicks) {
+    return new ActiveCooldownCondition(key, source, active, minimumRemainingTicks);
   }
 }
